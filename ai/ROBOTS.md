@@ -1,27 +1,58 @@
-# Robots.txt Analysis — EPAM Careers
+# Robots.txt Analysis — BestJobs & eJobs
 
-Sursa: https://careers.epam.com/robots.txt
+## BestJobs
 
-## Reguli
+Sursa: https://www.bestjobs.eu/robots.txt
+
+### Reguli
 
 ```
 User-agent: *
+Disallow:
+
+User-agent: MJ12bot
+User-agent: BLEXBot
+User-agent: AhrefsBot
+User-agent: SemrushBot
+User-agent: Yandex
+...
 Disallow: /
 ```
 
-## Interpretare
+### Interpretare
 
 | Cale | Accesibil? | Ce conține |
 |---|---|---|
-| `/` | ❌ Disallowed | Tot site-ul |
-| API (`/api/jobs/v2/...`) | ❌ Disallowed | API-ul JSON de la care scraper-ul extrage datele |
+| `/` | ✅ Allowed (`Disallow:` gol) | Tot site-ul, inclusiv paginile profilului de angajator |
+| `/company-profile/<slug>` | ✅ Allowed | Profilul companiei cu lista job-urilor scrape-uite |
 
-## Recomandare
+Robots.txt blochează doar crawler-ele explicite de SEO (MJ12, Ahrefs, Semrush, etc.). Agentul Chromium Headless cu un User-Agent obișnuit nu e pe listă.
 
-robots.txt NU este legal binding, dar reprezintă intenția proprietarului site-ului.
+## eJobs
 
-- API-ul `/api/jobs/v2/search/...` e **disallowed** de robots.txt. În practică, serverul răspunde cu 200 OK cu `User-Agent` normal și fără autentificare.
-- Paginile individuale de job sunt și ele disallowed. Noi nu le scraper-uim direct — doar le verificăm accesibilitatea (HEAD request) în teste.
-- Scraperul curent face o singură cerere per pagină (10 job-uri) cu delay de 1s între pagini — comportament rezonabil, nu agresiv.
+Sursa: https://www.ejobs.ro/robots.txt
 
-**Concluzie**: Risc minim. API-ul e public, răspunde fără autentificare, iar scraperul e politicos (rate limiting, User-Agent standard, o singură cerere simultană).
+### Reguli
+
+```
+User-agent: *
+Allow: */pagina2$ ... */pagina10$
+Disallow: /oauth/
+Disallow: */pagina
+Disallow: */sort-publish
+Disallow: */sort-geo
+```
+
+### Interpretare
+
+| Cale | Accesibil? | Ce conține |
+|---|---|---|
+| `/company/<slug>/<id>` | ✅ Allowed | Pagina de angajator cu lista job-urilor |
+| `/job/<id>` | ✅ Allowed | Paginile individuale de job |
+| `/oauth/` | ❌ Disallowed | Autentificare (nu ne interesează) |
+
+## Diferență față de template-ul EPAM
+
+Template-ul EPAM scrape-uia `careers.epam.com`, unde `Disallow: /` bloca oficial tot site-ul (dar API-ul răspundea 200 în practică). Pentru BestJobs și eJobs, robots.txt **permite explicit** scrape-ul pentru agenți generali — risc minim, mai mic decât la template.
+
+**Concluzie**: Risc minim pentru ambele surse. Ambele permit accesul pentru `User-agent: *`, iar scraper-ul e politicos (o singură pagină la un moment dat, fără crawl agresiv, fără autentificare).

@@ -5,18 +5,18 @@ import { validateAndGetCompany } from "./company.js";
 import { querySOLR, upsertJobs, upsertCompany, deleteJobByUrl } from "./api.js";
 import { generateJobsMarkdown } from "./markdown-generator.js";
 import companyConfig from "./config/company.js";
-import scraperConfig from "./config/scraper.js";
 
 const COMPANY_CIF = companyConfig.id;
-const JOB_BASE = scraperConfig.apiBase;
-const ROMANIA_COUNTRY_ID = scraperConfig.apiCountryId;
 
 const TIMEOUT = 10000;
-const PAGE_SIZE = 10;
 
 let COMPANY_NAME = null;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ============================================================================
+// ANOFM Scraper
+// ============================================================================
 
 async function searchANOFM(cif) {
   const jobs = [];
@@ -59,118 +59,124 @@ async function searchANOFM(cif) {
   return jobs;
 }
 
-async function fetchJobsPage(pageNum) {
-  const from = (pageNum - 1) * PAGE_SIZE;
-  const url = `${JOB_BASE}/api/jobs/v2/search/careers-i18n?from=${from}&lang=en&size=${PAGE_SIZE}&sortBy=relevance%3Brelocation%3Dasc&websiteLocale=en-us&facets=country%3D${ROMANIA_COUNTRY_ID}`;
+// ============================================================================
+// BestJobs Scraper (Playwright)
+// ============================================================================
 
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "job_seeker_ro_spider",
-      "Accept": "application/json"
-    }
-  });
+async function scrapeBestJobs() {
+  const jobs = [];
+  let browser = null;
+  try {
+    console.log("Scraping BestJobs company profile...");
+    const { chromium } = await import("playwright");
+    browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext({
+      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    });
+    const page = await context.newPage();
 
-  if (!res.ok) {
-    throw new Error(`API error ${res.status} for page=${pageNum}`);
-  }
+    await page.goto("https://www.bestjobs.eu/company-profile/cramele-cotnari", {
+      waitUntil: "networkidle",
+      timeout: 30000
+    });
+    await page.waitForTimeout(5000);
 
-  return await res.json();
-}
+    const jobLinks = await page.$$eval(
+      'a[href*="/job/"], a[href*="/oferta"], a[href*="/loc-de-munca"]',
+      (links) =>
+        links
+          .map((a) => ({
+            url: a.href,
+            title: a.textContent.trim().split("\n")[0].trim()
+          }))
+          .filter((j) => j.title && j.url && j.url.includes("bestjobs"))
+    );
 
-function parseApiJobs(apiData) {
-  const jobs = apiData.data?.jobs || [];
-  const total = apiData.data?.total || 0;
-
-  return {
-    jobs: jobs.map(job => {
-      const vacancyType = job.vacancy_type || "Hybrid";
-      let workmode = "hybrid";
-      if (vacancyType.toLowerCase().includes("remote")) workmode = "remote";
-      else if (vacancyType.toLowerCase().includes("office")) workmode = "on-site";
-
-      const location = [];
-      if (job.city && job.city.length > 0) {
-        for (const c of job.city) {
-          if (c.name) location.push(c.name);
-        }
-      } else if (job.country?.[0]?.name) {
-        location.push(job.country[0].name);
-      }
-
-      const uid = job.uid || "";
-      const seoUrl = job.seo?.url || `/en/vacancy/${uid}_en`;
-      const url = seoUrl.startsWith('http') ? seoUrl : `${JOB_BASE}${seoUrl}`;
-
-      const tags = (job.skills || []).map(s => s.toLowerCase());
-
-      return {
-        url,
-        title: job.name,
-        uid: job.uid,
-        workmode,
-        location,
-        tags
-      };
-    }),
-    total
-  };
-}
-
-async function scrapeAllListings(testOnlyOnePage = false) {
-  const allJobs = [];
-  const seenUrls = new Set();
-  let page = 1;
-  let totalJobs = 0;
-  const MAX_PAGES = 10;
-
-  while (true) {
-    console.log(`Fetching API page: ${page}`);
-    const data = await fetchJobsPage(page);
-    const result = parseApiJobs(data);
-    const jobs = result.jobs;
-
-    if (!jobs.length) {
-      console.log(`No jobs found on page ${page}, stopping.`);
-      break;
-    }
-
-    if (page === 1) {
-      totalJobs = result.total;
-      console.log(`Total jobs on site: ${totalJobs}`);
-    }
-
-    let newJobs = 0;
-    for (const job of jobs) {
-      if (!seenUrls.has(job.url)) {
-        seenUrls.add(job.url);
-        allJobs.push(job);
-        newJobs++;
+    for (const job of jobLinks) {
+      if (!jobs.find((j) => j.url === job.url)) {
+        jobs.push({ ...job, source: "bestjobs" });
       }
     }
-    console.log(`Page ${page}: ${jobs.length} jobs, ${newJobs} new (total: ${allJobs.length})`);
 
-    if (testOnlyOnePage) {
-      console.log("Test mode: stopping after page 1.");
-      break;
+    if (jobs.length === 0) {
+      const bodyText = await page.textContent("body").catch(() => "");
+      if (bodyText.includes("nu sunt locuri") || bodyText.includes("0 joburi") || bodyText.includes("0 vacancy")) {
+        console.log("  BestJobs: no jobs available for this company");
+      } else {
+        console.log("  BestJobs: 0 jobs found (may be empty or blocked)");
+      }
+    } else {
+      console.log(`  Found ${jobs.length} jobs on BestJobs`);
     }
-
-    if (page >= MAX_PAGES) {
-      console.log(`Max pages (${MAX_PAGES}) reached, stopping.`);
-      break;
-    }
-
-    if (newJobs === 0) {
-      console.log(`No new jobs on page ${page}, stopping.`);
-      break;
-    }
-
-    page += 1;
-    await sleep(1000);
+  } catch (err) {
+    console.log(`  BestJobs error: ${err.message}`);
+  } finally {
+    if (browser) await browser.close().catch(() => {});
   }
-
-  console.log(`Total unique jobs collected: ${allJobs.length}`);
-  return allJobs;
+  return jobs;
 }
+
+// ============================================================================
+// eJobs Scraper (Playwright)
+// ============================================================================
+
+async function scrapeEJobs() {
+  const jobs = [];
+  let browser = null;
+  try {
+    console.log("Scraping eJobs company page...");
+    const { chromium } = await import("playwright");
+    browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext({
+      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    });
+    const page = await context.newPage();
+
+    await page.goto("https://www.ejobs.ro/company/cotnari/304021", {
+      waitUntil: "networkidle",
+      timeout: 30000
+    });
+    await page.waitForTimeout(3000);
+
+    const bodyText = await page.textContent("body").catch(() => "");
+    if (bodyText.includes("nu are joburi disponibile")) {
+      console.log("  eJobs: no jobs available for this company");
+      return jobs;
+    }
+
+    const jobLinks = await page.$$eval(
+      'a[href*="/oferta-de-munca/"], a[href*="/job/"]',
+      (links) =>
+        links
+          .map((a) => ({
+            url: a.href,
+            title: a.textContent.trim().split("\n")[0].trim()
+          }))
+          .filter((j) => j.title && j.url && j.url.includes("ejobs"))
+    );
+
+    for (const job of jobLinks) {
+      if (!jobs.find((j) => j.url === job.url)) {
+        jobs.push({ ...job, source: "ejobs" });
+      }
+    }
+
+    if (jobs.length === 0) {
+      console.log("  eJobs: 0 jobs found");
+    } else {
+      console.log(`  Found ${jobs.length} jobs on eJobs`);
+    }
+  } catch (err) {
+    console.log(`  eJobs error: ${err.message}`);
+  } finally {
+    if (browser) await browser.close().catch(() => {});
+  }
+  return jobs;
+}
+
+// ============================================================================
+// Job Model
+// ============================================================================
 
 function mapToJobModel(rawJob, cif, companyName = COMPANY_NAME) {
   const now = new Date().toISOString();
@@ -243,8 +249,6 @@ function transformJobsForSOLR(payload) {
 // ============================================================================
 
 async function main() {
-  const testOnlyOnePage = process.argv.includes("--test");
-
   try {
     fs.mkdirSync("scraper", { recursive: true });
 
@@ -258,7 +262,7 @@ async function main() {
     const { company, cif, address, status } = await validateAndGetCompany();
     COMPANY_NAME = company;
     if (status === 'inactive') {
-      console.log("⚠️ Company is INACTIVE — jobs deleted, skipping scrape.");
+      console.log("Company is INACTIVE — jobs deleted, skipping scrape.");
       return;
     }
 
@@ -277,25 +281,34 @@ async function main() {
       console.log(`Note: Could not upsert company: ${err.message}`);
     }
 
-    const rawJobs = await scrapeAllListings(testOnlyOnePage);
-    const scrapedCount = rawJobs.length;
-    console.log(`Jobs scraped from EPAM Careers website: ${scrapedCount}`);
+    console.log("=== Step 3: Scrape jobs ===");
+    const rawJobs = [];
 
-    if (!testOnlyOnePage) {
-      const anofmJobs = await searchANOFM(cif);
-      const anofmCount = anofmJobs.length;
-      for (const job of anofmJobs) {
-        if (!rawJobs.find(j => j.url === job.url)) {
-          rawJobs.push(job);
-        }
+    const bestJobsJobs = await scrapeBestJobs();
+    rawJobs.push(...bestJobsJobs);
+
+    const ejobsJobs = await scrapeEJobs();
+    for (const job of ejobsJobs) {
+      if (!rawJobs.find(j => j.url === job.url)) {
+        rawJobs.push(job);
       }
-      console.log(`Jobs added from ANOFM: ${anofmCount}`);
     }
+
+    const anofmJobs = await searchANOFM(cif);
+    for (const job of anofmJobs) {
+      if (!rawJobs.find(j => j.url === job.url)) {
+        rawJobs.push(job);
+      }
+    }
+    console.log(`Jobs from ANOFM: ${anofmJobs.length}`);
+
+    const scrapedCount = rawJobs.length;
+    console.log(`Total jobs scraped (BestJobs + eJobs + ANOFM): ${scrapedCount}`);
 
     const jobs = rawJobs.map(job => mapToJobModel(job, cif));
 
     const payload = {
-      source: "epam.com",
+      source: "bestjobs.eu,ejobs.ro,anofm.ro",
       scrapedAt: new Date().toISOString(),
       company: COMPANY_NAME,
       cif: cif,
@@ -343,12 +356,12 @@ async function main() {
           await deleteJobByUrl(url);
           deletedCount++;
         } catch (delErr) {
-          console.warn(`  ⚠️ Failed to delete: ${url} — ${delErr.message}`);
+          console.warn(`  Failed to delete: ${url} — ${delErr.message}`);
         }
       }
-      console.log(`✅ Deleted ${deletedCount}/${staleUrls.length} stale job(s)`);
+      console.log(`Deleted ${deletedCount}/${staleUrls.length} stale job(s)`);
     } else {
-      console.log("\n✅ No stale jobs to delete");
+      console.log("\nNo stale jobs to delete");
     }
 
     console.log("\n=== Step 5: Summary ===");
@@ -357,7 +370,7 @@ async function main() {
     const finalResult = await querySOLR(COMPANY_CIF);
     console.log(`\n=== SUMMARY ===`);
     console.log(`Jobs existing in SOLR before scrape: ${existingCount}`);
-    console.log(`Jobs scraped from EPAM website: ${scrapedCount}`);
+    console.log(`Jobs scraped (BestJobs + eJobs + ANOFM): ${scrapedCount}`);
     console.log(`Stale jobs attempted: ${staleUrls.length}`);
     console.log(`Jobs in SOLR after scrape: ${finalResult.numFound}`);
     console.log(`====================`);
@@ -371,7 +384,7 @@ async function main() {
   }
 }
 
-export { parseApiJobs, mapToJobModel, transformJobsForSOLR };
+export { mapToJobModel, transformJobsForSOLR };
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main();

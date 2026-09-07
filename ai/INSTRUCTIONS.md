@@ -2,9 +2,9 @@
 
 ## Project Purpose
 
-This scraper extracts job listings from EPAM Careers Romania API and imports them to peviitor.ro.
+This scraper extracts job listings for **CRAMELE COTNARI S.A.** (CIF: 40321026) from BestJobs, eJobs, and ANOFM, and imports them to peviitor.ro.
 
-Target: https://careers.epam.com
+Targets: https://www.bestjobs.eu/company-profile/cramele-cotnari, https://www.ejobs.ro/company/cotnari/304021, https://mediere.anofm.ro
 
 ## Model Schemas
 
@@ -43,14 +43,14 @@ When working on this scraper:
 
 ## Workflow Steps
 
-1. **Start with brand** - We know the brand ("EPAM")
+1. **Start with brand** - We know the brand ("Cotnari")
 2. **Search in DemoANAF** - Find company by brand, get CIF from search results
 3. **Get company details from ANAF** - Using CIF, fetch full company data from ANAF
 4. **Validate with Peviitor** - Verify company exists in Peviitor, get group/brand info
 5. **Check existing jobs** - Query Peviitor API by CIF to see what jobs already exist
 6. **Check company status** - If ANAF status = "inactive" → DELETE existing jobs and STOP
 7. **Save company.json** - Save all ANAF + Peviitor data for backup
-8. **Scrape new jobs** - Extract jobs from EPAM Careers API (Romania)
+8. **Scrape new jobs** - Extract jobs from BestJobs/eJobs (Playwright DOM) + ANOFM (by CIF)
 9. **Transform for API** - Validate and fix job data:
    - location: Only Romanian cities allowed
    - tags: lowercase, no diacritics
@@ -65,7 +65,7 @@ When working on this scraper:
 node scraper/index.js
 ```
 
-> **Important**: Scraper does NOT delete jobs from other sources (ANOFM, etc). It only upserts EPAM Careers jobs. Existing jobs are preserved.
+> **Important**: Scraper does NOT delete jobs from other scrapers. It only upserts jobs scraped from BestJobs/eJobs/ANOFM. Existing jobs are preserved.
 
 ## Full Workflow (automatic)
 
@@ -73,7 +73,7 @@ When running `node scraper/index.js`, the following steps happen automatically:
 
 1. **Check existing jobs count** - Query Peviitor API by CIF (read-only)
 2. **Validate company via ANAF** - Check company exists and is active
-3. **Scrape jobs** - Extract jobs from EPAM Careers API (Romania only)
+3. **Scrape jobs** - Extract jobs from BestJobs/eJobs (Playwright) + ANOFM (by CIF)
 4. **Transform for API** - Fix locations (only Romanian cities), normalize fields
 5. **Upsert to API** - Add/update jobs (API handles duplicates by URL)
 6. **Delete stale jobs** - Remove jobs in API but no longer on the website
@@ -100,7 +100,7 @@ company.js (validate company)
     └── SOLR ──► check existing jobs count
     │
     ▼ (if active)
-scrape EPAM API (jobs for Romania)
+scrape BestJobs/eJobs (Playwright) + ANOFM (by CIF)
     │
     ▼
 transformJobsForSOLR()
@@ -130,7 +130,7 @@ generateJobsMarkdown() → docs/jobs.md
 | `scraper/validate-jobs.js` | Manual deep validator (content-aware); thin CLI wrapper over `scraper/job-validator.js` |
 | `scraper/job-validator.js` | Shared validation primitives: `validateByHead`, `validateByContent`, `DEFAULT_EXPIRED_KEYWORDS` |
 | `scraper/markdown-generator.js` | Generates `docs/jobs.md` with company info and all scraped jobs |
-| `tests/unit/index.test.js` | Unit tests for parseApiJobs, mapToJobModel, transformJobsForSOLR |
+| `tests/unit/index.test.js` | Unit tests for scrapeBestJobs, scrapeEJobs, mapToJobModel, transformJobsForSOLR |
 | `tests/unit/company.test.js` | Unit tests for validateAndGetCompany and fallback caching |
 | `tests/unit/api.test.js` | Unit tests for api.js - query, upsert, delete, HTTP error handling |
 | `tests/unit/demoanaf.test.js` | Unit tests for anaf.js - ANAF search and company retrieval |
@@ -148,7 +148,9 @@ generateJobsMarkdown() → docs/jobs.md
 - **CUIScan**: `https://cuiscan.ro/api.php?action=company&cui=CIF` - Company details fallback
 - **CUIFirma Search**: `https://cuifirma.ro/api/search?q=BRAND` - Search fallback
 - **Peviitor API**: `https://api.peviitor.ro/v1/` — all job and company operations go through this API
-- **EPAM Careers API**: `https://careers.epam.com/api/jobs/v2/search/careers-i18n` — GET with query params (country, page, size)
+- **BestJobs**: `https://www.bestjobs.eu/company-profile/cramele-cotnari` — profilul companiei; job-urile au URL-uri `/job/<slug>`
+- **eJobs**: `https://www.ejobs.ro/company/cotnari/304021` — profilul companiei; job-urile au URL-uri `/job/<slug>`
+- **ANOFM**: `POST https://api.anofm.ro/api/entity/vw_public_job_posting` — filter by `employer_tax_code` (CIF)
 
 ## Rate Limiting & Politeness
 
