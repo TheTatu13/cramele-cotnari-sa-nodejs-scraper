@@ -14,7 +14,7 @@
 
 ## Current Job Listings (94)
 
-_Generated: 2026-09-07T11:21:25.692Z_
+_Generated: 2026-09-07T17:27:06.350Z_
 
 ### Senior Full Stack ABAP/UI5 Developer
 
