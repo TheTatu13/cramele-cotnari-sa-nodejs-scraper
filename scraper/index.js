@@ -342,7 +342,11 @@ async function main() {
     console.log("Copied scraper/config/company.json → docs/company.json");
 
     console.log("\n=== Step 4: Upsert jobs to SOLR ===");
-    await upsertJobs(transformedPayload.jobs);
+    if (transformedPayload.jobs.length > 0) {
+      await upsertJobs(transformedPayload.jobs);
+    } else {
+      console.log("No jobs scraped — skipping upsert (API rejects an empty array)");
+    }
 
     const scrapedUrls = new Set(transformedPayload.jobs.map(job => job.url));
     const staleUrls = [...existingUrls].filter(url => !scrapedUrls.has(url));
