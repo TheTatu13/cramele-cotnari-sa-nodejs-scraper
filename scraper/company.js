@@ -177,7 +177,15 @@ export async function getCompanyData() {
 // COMPANY VALIDATION WORKFLOW
 // ============================================================================
 
-export async function validateAndGetCompany() {
+/**
+ * ``dryRun`` must reach all the way here: an ANAF-inactive company below
+ * triggers ``deleteJobsByCIF`` -- a real, CIF-wide DELETE against peviitor's
+ * live API that removes every job under that CIF, including ones scraped
+ * by other, unrelated scrapers -- and this function used to fire it
+ * unconditionally, with no way for a caller to ask for a safe, read-only
+ * check.
+ */
+export async function validateAndGetCompany(dryRun = false) {
   console.log("=== Step 1: Validate company via ANAF ===\n");
 
   const { company, cif, active, anafData } = await getCompanyData();
@@ -200,9 +208,13 @@ export async function validateAndGetCompany() {
   }
 
   if (!active) {
-    console.log("\n⚠️ Company is INACTIVE in ANAF - deleting jobs from SOLR and stopping");
-    if (solrResult.numFound > 0) {
-      await deleteJobsByCIF(cif);
+    if (dryRun) {
+      console.log(`\n⚠️ Company is INACTIVE in ANAF -- dry-run, so NOT deleting the ${solrResult.numFound} job(s) under this CIF (would run deleteJobsByCIF on a real run)`);
+    } else {
+      console.log("\n⚠️ Company is INACTIVE in ANAF - deleting jobs from SOLR and stopping");
+      if (solrResult.numFound > 0) {
+        await deleteJobsByCIF(cif);
+      }
     }
     return { status: "inactive", company, cif, existingJobsCount: solrResult.numFound };
   }

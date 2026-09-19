@@ -248,7 +248,7 @@ function transformJobsForSOLR(payload) {
 // MAIN
 // ============================================================================
 
-async function main() {
+async function main(dryRun = process.argv.includes("--dry-run")) {
   try {
     fs.mkdirSync("scraper", { recursive: true });
 
@@ -259,26 +259,30 @@ async function main() {
     console.log(`Found ${existingCount} existing jobs in SOLR`);
 
     console.log("=== Step 2: Validate company via ANAF ===");
-    const { company, cif, address, status } = await validateAndGetCompany();
+    const { company, cif, address, status } = await validateAndGetCompany(dryRun);
     COMPANY_NAME = company;
     if (status === 'inactive') {
       console.log("Company is INACTIVE — jobs deleted, skipping scrape.");
       return;
     }
 
-    try {
-      await upsertCompany({
-        id: cif,
-        company,
-        brand: companyConfig.brand || undefined,
-        status: status === 'active' ? 'activ' : (status || "activ"),
-        location: address ? [address] : companyConfig.location,
-        website: companyConfig.website,
-        career: companyConfig.career,
-        lastScraped: new Date().toISOString().split('T')[0]
-      });
-    } catch (err) {
-      console.log(`Note: Could not upsert company: ${err.message}`);
+    if (!dryRun) {
+      try {
+        await upsertCompany({
+          id: cif,
+          company,
+          brand: companyConfig.brand || undefined,
+          status: status === 'active' ? 'activ' : (status || "activ"),
+          location: address ? [address] : companyConfig.location,
+          website: companyConfig.website,
+          career: companyConfig.career,
+          lastScraped: new Date().toISOString().split('T')[0]
+        });
+      } catch (err) {
+        console.log(`Note: Could not upsert company: ${err.message}`);
+      }
+    } else {
+      console.log(`dry-run -- would upsert company core for CIF ${cif}`);
     }
 
     console.log("=== Step 3: Scrape jobs ===");
@@ -342,7 +346,9 @@ async function main() {
     console.log("Copied scraper/config/company.json → docs/company.json");
 
     console.log("\n=== Step 4: Upsert jobs to SOLR ===");
-    if (transformedPayload.jobs.length > 0) {
+    if (dryRun) {
+      console.log(`dry-run -- would upsert ${transformedPayload.jobs.length} jobs`);
+    } else if (transformedPayload.jobs.length > 0) {
       await upsertJobs(transformedPayload.jobs);
     } else {
       console.log("No jobs scraped — skipping upsert (API rejects an empty array)");
@@ -351,7 +357,9 @@ async function main() {
     const scrapedUrls = new Set(transformedPayload.jobs.map(job => job.url));
     const staleUrls = [...existingUrls].filter(url => !scrapedUrls.has(url));
 
-    if (staleUrls.length > 0) {
+    if (staleUrls.length > 0 && dryRun) {
+      console.log(`\ndry-run -- would delete ${staleUrls.length} stale job(s)`);
+    } else if (staleUrls.length > 0) {
       console.log(`\n=== Step 4.5: Delete ${staleUrls.length} stale job(s) ===`);
       let deletedCount = 0;
       for (const url of staleUrls) {
