@@ -8,6 +8,26 @@ import companyConfig from "./config/company.js";
 
 const COMPANY_CIF = companyConfig.id;
 
+// This scraper has no single "own domain" -- it pulls from three job boards.
+// The same CIF can carry jobs added by OTHER means (a generic eJobs/BestJobs
+// aggregator import not tied to this scraper, a future company-specific
+// scraper, etc). There is no per-job "added by" field in Solr to tell those
+// apart, so as a floor we only ever consider a URL "ours" (and therefore a
+// stale-deletion candidate) when it's on one of the domains this scraper
+// itself produces URLs from. This does not fully solve the ambiguity for
+// eJobs/BestJobs (a generic aggregator could use the same domains), but it
+// stops jobs from unrelated sources under this CIF from ever being deleted.
+export const OWN_SOURCE_DOMAINS = ["bestjobs.eu", "ejobs.ro", "anofm.ro"];
+export function isOwnJob(url) {
+  if (typeof url !== "string") return false;
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return OWN_SOURCE_DOMAINS.some((d) => host === d || host.endsWith(`.${d}`));
+  } catch {
+    return false;
+  }
+}
+
 const TIMEOUT = 10000;
 
 let COMPANY_NAME = null;
@@ -355,7 +375,12 @@ async function main(dryRun = process.argv.includes("--dry-run")) {
     }
 
     const scrapedUrls = new Set(transformedPayload.jobs.map(job => job.url));
-    const staleUrls = [...existingUrls].filter(url => !scrapedUrls.has(url));
+    const notOurs = [...existingUrls].filter(url => !isOwnJob(url));
+    if (notOurs.length > 0) {
+      console.log(`\n${notOurs.length} existing job(s) on this CIF are not from bestjobs.eu/ejobs.ro/anofm.ro — never touched:`);
+      for (const url of notOurs) console.log(`  ${url}`);
+    }
+    const staleUrls = [...existingUrls].filter(url => isOwnJob(url) && !scrapedUrls.has(url));
 
     if (staleUrls.length > 0 && dryRun) {
       console.log(`\ndry-run -- would delete ${staleUrls.length} stale job(s)`);

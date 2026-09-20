@@ -15,6 +15,7 @@
 import companyConfig from "../scraper/config/company.js";
 import { querySOLR, deleteJobByUrl } from "../scraper/api.js";
 import { validateByHead, validateByContent, validateByBrowser } from "../scraper/job-validator.js";
+import { isOwnJob } from "../scraper/index.js";
 
 const CIF = companyConfig.id;
 const COMPANY = companyConfig.company;
@@ -68,12 +69,19 @@ async function main() {
     console.log(`  ${job.title} | ${job.url}`);
   }
 
+  const ours = invalid.filter((job) => isOwnJob(job.url));
+  const notOurs = invalid.filter((job) => !isOwnJob(job.url));
+  if (notOurs.length > 0) {
+    console.log(`\n${notOurs.length} invalid job(s) are not from bestjobs.eu/ejobs.ro/anofm.ro — never touched:`);
+    for (const job of notOurs) console.log(`  ${job.title} | ${job.url}`);
+  }
+
   if (dryRun) {
     console.log("(dry run — no deletions performed)");
     return;
   }
   if (doDelete) {
-    for (const job of invalid) {
+    for (const job of ours) {
       await deleteJobByUrl(job.url);
       console.log(`Deleted: ${job.title}`);
     }

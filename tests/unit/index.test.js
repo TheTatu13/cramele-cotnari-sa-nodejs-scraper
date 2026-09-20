@@ -115,4 +115,23 @@ describe('index.js Component Tests', () => {
       expect(result.url).toBe('https://test.com/1');
     });
   });
+
+  describe('isOwnJob', () => {
+    // Regression: this scraper's stale-job-deletion step (Step 4.5) used to
+    // compute staleUrls from ALL jobs Solr returns for this CIF, with no
+    // ownership check. The same CIF can carry jobs added by something other
+    // than this scraper, and those would get silently deleted the moment
+    // this run's scrape didn't happen to reproduce their exact URL.
+    it('accepts bestjobs.eu, ejobs.ro and anofm.ro URLs', () => {
+      expect(index.isOwnJob('https://www.bestjobs.eu/job/123')).toBe(true);
+      expect(index.isOwnJob('https://www.ejobs.ro/job/456')).toBe(true);
+      expect(index.isOwnJob('https://mediere.anofm.ro/job/789')).toBe(true);
+    });
+
+    it('rejects URLs from unrelated domains', () => {
+      expect(index.isOwnJob('https://careers.someothercompany.com/job/1')).toBe(false);
+      expect(index.isOwnJob('not-a-url')).toBe(false);
+      expect(index.isOwnJob(undefined)).toBe(false);
+    });
+  });
 });
