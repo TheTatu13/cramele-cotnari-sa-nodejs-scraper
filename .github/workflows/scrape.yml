@@ -1,0 +1,242 @@
+name: Scrape
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (scrape + validate, no real writes)'
+        type: boolean
+        default: true
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          
+      - name: Sync with remote
+        if: github.event_name != 'pull_request'
+        run: git pull origin main --rebase -X theirs
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Ensure company exists in company core
+        # Real write, so it must respect BOTH gates real writes need:
+        #   - manageCompany (config/scraper.json) -- skip entirely once another
+        #     scraper is verified to own this CIF's company record.
+        #   - dry_run -- only a manual workflow_dispatch run can ask for it (default
+        #     true in the UI); a schedule trigger has no `inputs` context at all
+        #     (github.event.inputs.dry_run is "" there, not "false"), so it must
+        #     fall through to a REAL run, same rule as the Python template's
+        #     scrape.yml. This step used to run unconditionally on every trigger,
+        #     ignoring both manageCompany and any notion of dry-run -- there was no
+        #     dry-run concept anywhere in the JS scraper until this fix.
+        if: "!(github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true')"
+        run: |
+          MANAGE_COMPANY=$(jq -r '.manageCompany' scraper/config/scraper.json)
+          if [ "$MANAGE_COMPANY" != "true" ]; then
+            echo "manageCompany=false in config/scraper.json -- skipping (another scraper owns this CIF's company record)"
+            exit 0
+          fi
+          CIF=$(jq -r '.id' scraper/config/company.json)
+          LEGAL_NAME=$(jq -r '.company' scraper/config/company.json)
+          BRAND=$(jq -r '.brand' scraper/config/company.json)
+          WEBSITE=$(jq -r '.website[0]' scraper/config/company.json)
+          CAREER=$(jq -r '.career[0]' scraper/config/company.json)
+          DEFAULT_LOC=$(jq -r '.location[0]' scraper/config/company.json)
+          SCRAPER_FILE=$(jq -r '.scraperFile' scraper/config/company.json)
+          TODAY=$(date -u +%Y-%m-%d)
+
+          echo "Upserting ${BRAND} (CIF: ${CIF}) via peviitor API..."
+          jq -n \
+            --arg id "$CIF" \
+            --arg company "$LEGAL_NAME" \
+            --arg brand "$BRAND" \
+            --arg website "$WEBSITE" \
+            --arg career "$CAREER" \
+            --arg loc "$DEFAULT_LOC" \
+            --arg today "$TODAY" \
+            --arg scraperFile "$SCRAPER_FILE" \
+            '{id:$id,company:$company,brand:$brand,status:"activ",location:[$loc],website:[$website],career:[$career],lastScraped:$today,scraperFile:$scraperFile}' \
+            > company_data.json
+
+          curl -s -X PUT \
+            "https://api.peviitor.ro/v1/firme/company/add/" \
+            -H "Content-Type: application/json" \
+            --data-binary @company_data.json
+
+          FINAL=$(curl -s \
+            "https://api.peviitor.ro/v1/firme/company/?cif=${CIF}" | jq '.total')
+
+          echo "${BRAND} count after upsert: $FINAL"
+
+          if [ "$FINAL" -ge "1" ]; then
+            echo "✅ SUCCESS: ${BRAND} is in company core"
+          else
+            echo "❌ FAILED: ${BRAND} still not in company core"
+            exit 1
+          fi
+
+      - name: Pre-scrape — Unit Tests
+        # Non-blocking: tests/unit/demoanaf.test.js makes live, unmocked calls
+        # to demoanaf.ro (searchCompany). anaf.js itself already falls back to
+        # cuifirma.ro when demoanaf.ro is down, but if BOTH providers are ever
+        # down at once, this step must not be able to stop "Run scraper" below
+        # -- that exact failure mode (a live external test dependency blocking
+        # the whole pipeline for days) took down a fleet-adjacent scraper on
+        # 2026-09-24. Test results are still generated and uploaded either way.
+        continue-on-error: true
+        run: |
+          mkdir -p docs/test-results
+          npm run test:unit
+          sed -i 's|<title>Test Report</title>|<title>Pre-scrape: Unit Tests — {{COMPANY_NAME}}</title>|;s|<h1 id="title">Test Report</h1>|<h1 id="title">Pre-scrape: Unit Tests — {{COMPANY_NAME}}</h1>|' test-report.html
+          cp test-report.html docs/test-results/pre-scrape-unit.html || true
+
+      - name: Pre-scrape — Integration Tests
+        # Same live demoanaf.ro/cuifirma.ro dependency as the unit suite above
+        # (workflow.test.js also calls anaf.searchCompany) -- non-blocking for
+        # the same reason.
+        continue-on-error: true
+        run: |
+          mkdir -p docs/test-results
+          npm run test:integration
+          sed -i 's|<title>Test Report</title>|<title>Pre-scrape: Integration Tests — {{COMPANY_NAME}}</title>|;s|<h1 id="title">Test Report</h1>|<h1 id="title">Pre-scrape: Integration Tests — {{COMPANY_NAME}}</h1>|' test-report.html
+          cp test-report.html docs/test-results/pre-scrape-integration.html || true
+
+      - name: Run scraper
+        # Same gating rule as the Python template: only a manual workflow_dispatch
+        # run can ask for dry-run (default true in the UI, so an explicit "false"
+        # is required to write for real from there). A scheduled run has no
+        # `inputs` context at all -- github.event.inputs.dry_run is "" on a
+        # `schedule` trigger, which must fall through to a REAL run.
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.dry_run }}" != "false" ]; then
+            npm run scrape:dry-run
+          else
+            npm run scrape
+          fi
+          
+      - name: Check for new jobs
+        run: |
+          if [ -f scraper/jobs.json ]; then
+            echo "New jobs found:"
+            cat scraper/jobs.json | jq '.jobs | length'
+          else
+            echo "No new jobs or scrape failed"
+          fi
+
+      - name: Post-scrape — E2E Tests
+        # Same live demoanaf.ro dependency (scraper.test.js calls searchCompany)
+        # -- non-blocking so a broken external demo endpoint can't also skip
+        # Consistency Tests below, after a scrape that already succeeded.
+        continue-on-error: true
+        run: |
+          mkdir -p docs/test-results
+          npm run test:e2e
+          sed -i 's|<title>Test Report</title>|<title>Post-scrape: E2E Tests — {{COMPANY_NAME}}</title>|;s|<h1 id="title">Test Report</h1>|<h1 id="title">Post-scrape: E2E Tests — {{COMPANY_NAME}}</h1>|' test-report.html
+          cp test-report.html docs/test-results/post-scrape.html || true
+
+      - name: Consistency Tests
+        run: |
+          mkdir -p docs/test-results
+          npm run test:consistency
+          sed -i 's|<title>Test Report</title>|<title>Post-scrape: Consistency Tests — {{COMPANY_NAME}}</title>|;s|<h1 id="title">Test Report</h1>|<h1 id="title">Post-scrape: Consistency Tests — {{COMPANY_NAME}}</h1>|' test-report.html
+          cp test-report.html docs/test-results/post-scrape-consistency.html || true
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: docs/test-results/
+          retention-days: 30
+
+      - name: Push test results to docs/
+        if: always()
+        run: |
+          mkdir -p docs/test-results
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/test-results/ || true
+          git add docs/jobs.md || true
+          git commit -m "[skip ci] Update test results" || echo "No changes to commit"
+          git push || echo "Push failed (race condition) — will be picked up next run"
+          
+      - name: Upload jobs JSON
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: scraped-jobs
+          path: |
+            scraper/jobs.json
+            scraper/jobs_existing.json
+          retention-days: 7
+
+  autoheal:
+    runs-on: ubuntu-latest
+    needs: scrape
+    if: failure()
+    permissions:
+      issues: write
+
+    steps:
+      - name: Open (or update) an auto-heal issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create "auto-heal" --color "d73a4a" \
+            --description "Automated failure of a scheduled workflow" 2>/dev/null || true
+
+          # De-dup: one open auto-heal issue for this workflow at a time.
+          EXISTING=$(gh issue list --label auto-heal --state open \
+            --search "Auto-heal: scrape workflow in:title" \
+            --json number --jq '.[0].number // empty')
+
+          NOW=$(date -u +%FT%TZ)
+
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "Another run failed: ${RUN_URL} (${NOW}, trigger: ${{ github.event_name }})."
+            echo "Commented on existing issue #${EXISTING}"
+            exit 0
+          fi
+
+          BODY="The **${{ github.workflow }}** workflow failed.
+
+          - **Run:** ${RUN_URL}
+          - **Commit:** \`${{ github.sha }}\`
+          - **Trigger:** ${{ github.event_name }}
+          - **When:** ${NOW}
+
+          ## Likely causes
+          - Careers-page selector broke — the scraper's canary aborts when all
+            sources return 0 jobs (\`scraper/config/scraper.json\` selectors).
+          - \`api.peviitor.ro\` / ANAF unreachable (retries with backoff are in
+            place, but a long outage still fails the run).
+          - Company marked inactive in ANAF (scraper deletes our jobs and stops).
+          - A pre/post-scrape test suite failed.
+
+          ## To fix
+          1. Open the run logs above, find the failed step.
+          2. Push a fix on \`main\`.
+          3. Close this issue — the next scheduled run re-checks."
+
+          gh issue create \
+            --title "Auto-heal: scrape workflow failed $(date -u +%Y-%m-%d)" \
+            --label auto-heal \
+            --body "$BODY"
