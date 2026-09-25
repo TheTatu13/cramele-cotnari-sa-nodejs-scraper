@@ -3,10 +3,6 @@ import fetch from 'node-fetch';
 
 const API_BASE = 'https://api.peviitor.ro/v1';
 
-let HAS_API = false;
-
-let HAS_ANAF = false;
-
 function itIfApi(name, fn, timeout) {
   if (HAS_API) {
     return it(name, fn, timeout);
@@ -26,8 +22,14 @@ const TEST_CIF = companyConfig.id;
 const TEST_BRAND = companyConfig.brand;
 const COMPANY_NAME = companyConfig.company;
 
-beforeAll(async () => {
-  [HAS_API, HAS_ANAF] = await Promise.all([
+// NOTE: this must resolve via top-level await, BEFORE the describe()/it()
+// calls below are registered. Jest builds its whole test tree synchronously
+// on file load, so a `beforeAll`-based check here would only ever be read
+// by itIfApi/itIfAnaf AFTER they already decided (at their default `false`)
+// whether to skip — permanently pending every gated test regardless of
+// actual availability. Top-level await runs first, so the real result is
+// what gates registration.
+const [HAS_API, HAS_ANAF] = await Promise.all([
     (async () => {
       try {
         const res = await fetch(`${API_BASE}/scraper/jobs/?cif=${TEST_CIF}&rows=1`, {
@@ -52,8 +54,7 @@ beforeAll(async () => {
         return false;
       }
     })()
-  ]);
-});
+]);
 
 describe('E2E: Full Scraping Pipeline', () => {
 

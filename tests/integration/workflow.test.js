@@ -3,10 +3,6 @@ import fetch from 'node-fetch';
 
 const API_BASE = 'https://api.peviitor.ro/v1';
 
-let HAS_API = false;
-
-let HAS_ANAF = false;
-
 async function checkAnafAvailability() {
   // demoanaf.ro's free API tier was sunset 2026-08-21 (permanent HTTP 402).
   // anaf.js falls back to cuiscan.ro/cuifirma.ro, so probe that too.
@@ -52,9 +48,12 @@ async function checkApiAvailability() {
   }
 }
 
-beforeAll(async () => {
-  [HAS_API, HAS_ANAF] = await Promise.all([checkApiAvailability(), checkAnafAvailability()]);
-});
+// NOTE: top-level await, resolved BEFORE the describe()/it() calls below are
+// registered. Jest builds its whole test tree synchronously on file load, so
+// a `beforeAll`-based check here would only ever be read by itIfApi/itIfAnaf
+// AFTER they already decided (at their default `false`) whether to skip —
+// permanently pending every gated test regardless of actual availability.
+const [HAS_API, HAS_ANAF] = await Promise.all([checkApiAvailability(), checkAnafAvailability()]);
 
 describe('Integration: API Workflow', () => {
 
