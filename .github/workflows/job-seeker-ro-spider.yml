@@ -135,6 +135,10 @@ jobs:
           fi
 
       - name: Post-scrape — E2E Tests
+        # Same live demoanaf.ro dependency (scraper.test.js calls searchCompany)
+        # -- non-blocking so a broken external demo endpoint can't also skip
+        # Consistency Tests below, after a scrape that already succeeded.
+        continue-on-error: true
         run: |
           mkdir -p docs/test-results
           npm run test:e2e
