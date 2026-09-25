@@ -6,12 +6,14 @@
   <title data-i18n="pageTitle">Locuri de muncă — peviitor.ro</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
+    :root{--ink:#eceef1;--ink-dim:#9a9fac;--ink-faint:#5c616e;--bg:#0a0a0d;--surface:#131317;--surface2:#1a1a20;--border:#2a2a32;--red:#e0122a;--good:#2fd66a;}
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', -apple-system, sans-serif;
-      background: linear-gradient(135deg, #fdf6f0 0%, #f5e6d3 50%, #f0dcc8 100%);
-      color: #2d2a24;
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg);
+      color: var(--ink);
       min-height: 100vh;
       line-height: 1.6;
     }
@@ -27,31 +29,37 @@
       line-height: 0;
     }
     .logo-img {
-      height: 32px;
+      height: 26px;
       width: auto;
       transition: opacity 0.2s;
+      filter: grayscale(1) brightness(1.6);
     }
     .logo-img:hover { opacity: 0.8; }
     header h1 {
-      font-size: 1.5rem;
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.7rem;
       font-weight: 700;
-      color: #c44536;
-      letter-spacing: -0.02em;
-      margin: 0.5rem 0 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+      color: var(--ink);
+      margin: 0.6rem 0 0.25rem;
     }
     header p {
-      color: #7d6b5a;
-      font-size: 0.9rem;
+      color: var(--ink-faint);
+      font-size: 0.85rem;
     }
     header .scraper-tag {
       display: inline-block;
-      margin-top: 0.5rem;
+      margin-top: 0.6rem;
       padding: 0.3rem 0.85rem;
-      background: #e8d5c4;
-      border-radius: 8px;
-      font-family: 'Fira Code', monospace;
-      font-size: 0.8rem;
-      color: #5a4a3a;
+      background: var(--surface);
+      border: 1px solid var(--red);
+      color: var(--red);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
     }
 
     .lang-toggle {
@@ -59,74 +67,79 @@
       top: 0;
       right: 0;
       display: inline-flex;
-      background: #e8d5c4;
-      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
       overflow: hidden;
     }
     .lang-toggle button {
       border: none;
       background: transparent;
       padding: 0.35rem 0.75rem;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: #7d6b5a;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      color: var(--ink-faint);
       cursor: pointer;
       transition: all 0.2s;
     }
     .lang-toggle button.active {
-      background: #c44536;
+      background: var(--red);
       color: #fff;
     }
-    .lang-toggle button:not(.active):hover { color: #5a4a3a; }
+    .lang-toggle button:not(.active):hover { color: var(--ink-dim); }
 
     .card {
-      background: #fffcf9;
-      border-radius: 16px;
-      box-shadow: 0 4px 24px rgba(90, 60, 40, 0.10);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
       overflow: hidden;
-      margin-bottom: 1.25rem;
+      margin-bottom: 1.1rem;
     }
     .card-header {
-      padding: 1.1rem 1.5rem;
-      border-bottom: 1px solid #f0e4d8;
-      font-weight: 600;
+      padding: 1.05rem 1.35rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      font-family: 'Oswald', sans-serif;
+      font-weight: 700;
       font-size: 0.9rem;
-      color: #5a4a3a;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--ink);
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
-    .card-body { padding: 1.5rem; }
+    .card-body { padding: 1.35rem; }
 
     .stats {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
     }
     .stat {
-      background: linear-gradient(135deg, #f0faf3, #e8f5ec);
-      border-radius: 12px;
+      background: var(--surface);
       padding: 1.25rem 1rem;
       text-align: center;
     }
     .stat-value {
+      font-family: 'Oswald', sans-serif;
       font-size: 1.75rem;
       font-weight: 700;
-      color: #2e7d32;
+      color: var(--good);
       line-height: 1.2;
     }
     .stat-label {
-      font-size: 0.78rem;
-      color: #558b5a;
-      font-weight: 500;
-      margin-top: 0.2rem;
+      font-size: 0.72rem;
+      color: var(--ink-faint);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-top: 0.3rem;
     }
-    .stat-time {
-      background: linear-gradient(135deg, #fef8f0, #fdf0e0);
-    }
-    .stat-time .stat-value { color: #c44536; font-size: 1.1rem; }
-    .stat-time .stat-label { color: #a07050; }
+    .stat-time .stat-value { color: var(--red); font-size: 1.1rem; }
 
     .features-list {
       list-style: none;
@@ -135,104 +148,128 @@
       gap: 0.6rem;
     }
     .features-list li {
-      padding: 0.4rem 0.85rem;
-      background: #f5ede6;
-      border-radius: 20px;
-      font-size: 0.82rem;
-      color: #5a4a3a;
+      padding: 0.5rem 0.9rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      font-size: 0.78rem;
+      color: var(--ink-dim);
     }
     .features-list li::before {
       content: "\2713";
-      color: #2e7d32;
+      color: var(--good);
       margin-right: 0.4rem;
       font-weight: 700;
     }
 
-    .company-grid {
+    .company-grid, .tests-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 0.6rem;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
     }
     .company-item {
-      background: #f5ede6;
-      padding: 0.55rem 0.85rem;
-      border-radius: 8px;
-      font-size: 0.82rem;
+      background: var(--surface);
+      padding: 0.65rem 0.9rem;
+      font-size: 0.78rem;
+      color: var(--ink-dim);
     }
     .company-item strong {
-      color: #c44536;
+      color: var(--red);
+      display: block;
+      font-size: .65rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: .15rem;
     }
     .company-item a {
-      color: #c44536;
+      color: var(--ink-dim);
       text-decoration: none;
     }
-    .company-item a:hover { text-decoration: underline; }
+    .company-item a:hover { color: var(--red); }
+
+    .test-card {
+      background: var(--surface);
+      padding: 1rem 1.1rem;
+      text-decoration: none;
+      color: var(--ink);
+      border-top: 2px solid transparent;
+      transition: .15s ease;
+      display: block;
+    }
+    .test-card:hover { border-top-color: var(--red); background: var(--surface2); }
+    .test-card .t-title { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: .82rem; text-transform: uppercase; letter-spacing: .03em; }
+    .test-card .t-sub { font-size: .72rem; color: var(--ink-faint); margin-top: .2rem; }
+    .test-card.missing { color: var(--ink-faint); cursor: default; }
 
     .btn {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      background: #c44536;
-      color: #fff;
-      border: none;
-      padding: 0.8rem 1.6rem;
-      border-radius: 10px;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.9rem;
-      font-weight: 600;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--red);
+      color: var(--ink);
+      padding: 0.75rem 1.4rem;
+      border-radius: 2px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .03em;
       cursor: pointer;
       text-decoration: none;
-      transition: background 0.2s, transform 0.15s;
+      transition: background 0.15s;
     }
     .btn:hover {
-      background: #a83828;
-      transform: translateY(-1px);
+      background: var(--surface2);
     }
     .btn-wrapper { text-align: center; margin: 1rem 0; }
 
     .job-item {
       padding: 1rem 0;
-      border-bottom: 1px solid #f0e4d8;
+      border-bottom: 1px solid var(--border);
     }
     .job-item:last-child { border-bottom: none; }
     .job-item a {
-      color: #c44536;
+      color: var(--ink);
       text-decoration: none;
       font-weight: 500;
-      font-size: 0.9rem;
+      font-size: 0.86rem;
     }
-    .job-item a:hover { text-decoration: underline; }
+    .job-item a:hover { color: var(--red); }
     .job-meta {
       display: flex;
       flex-wrap: wrap;
       gap: 0.75rem;
       margin-top: 0.3rem;
-      font-size: 0.78rem;
-      color: #7d6b5a;
+      font-size: 0.72rem;
+      color: var(--ink-faint);
     }
     .job-meta span { display: inline-flex; align-items: center; gap: 0.2rem; }
 
     .empty-state {
       text-align: center;
       padding: 2rem 0;
-      color: #9a8a7a;
-      font-size: 0.9rem;
+      color: var(--ink-faint);
+      font-size: 0.85rem;
     }
 
     footer {
       text-align: center;
       padding: 2rem 0;
-      color: #9a8a7a;
-      font-size: 0.8rem;
+      color: var(--ink-faint);
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
     }
-    footer a { color: #c44536; text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
+    footer a { color: var(--ink-dim); text-decoration: none; font-weight: 600; }
+    footer a:hover { color: var(--red); }
 
     @media (max-width: 600px) {
       .lang-toggle { position: static; margin-bottom: 0.75rem; }
       header { display: flex; flex-direction: column; align-items: center; }
       .stats { grid-template-columns: 1fr; }
-      .company-grid { grid-template-columns: 1fr; }
+      .company-grid, .tests-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -320,15 +357,44 @@
     <a class="btn" href="https://github.com/TheTatu13/cramele-cotnari-sa-nodejs-scraper/actions/workflows/job-seeker-ro-spider.yml" target="_blank">
       <span>&#9654;</span> <span data-i18n="runBtn">Rulează Scraper</span>
     </a>
-    <a class="btn" href="test-results/" style="background:#7d6b5a;">
-      <span>&#128203;</span> <span data-i18n="testResults">Rezultate Teste</span>
-    </a>
-    <a class="btn" href="jobs.md" target="_blank" style="background:#4a7c59;">
+    <a class="btn" href="jobs.md" target="_blank">
       <span>&#128196;</span> <span data-i18n="jobsMd">Jobs MD</span>
     </a>
-    <a class="btn" href="https://github.com/TheTatu13/cramele-cotnari-sa-nodejs-scraper/actions/workflows/tests.yml" target="_blank" style="background:#2e7d32;">
-      <span>&#9881;</span> <span data-i18n="testsWorkflow">Workflow Teste</span>
+    <a class="btn" href="https://github.com/TheTatu13/cramele-cotnari-sa-nodejs-scraper" target="_blank">
+      <span>&#128218;</span> <span data-i18n="sourceBtn">Cod sursă</span>
     </a>
+  </div>
+
+  <div class="card">
+    <div class="card-header" data-i18n="testsTitle">Rezultate teste</div>
+    <div class="card-body" style="padding:0">
+      <div class="tests-grid">
+        <a class="test-card" href="test-results/pre-scrape-unit.html" target="_blank">
+          <div class="t-title" data-i18n="testUnit">Unit Tests</div>
+          <div class="t-sub" data-i18n="testUnitSub">Teste izolate, fără rețea</div>
+        </a>
+        <a class="test-card" href="test-results/pre-scrape-integration.html" target="_blank">
+          <div class="t-title" data-i18n="testIntegration">Integration Tests</div>
+          <div class="t-sub" data-i18n="testIntegrationSub">ANAF + API Peviitor, înainte de scrape</div>
+        </a>
+        <a class="test-card" href="test-results/post-scrape.html" target="_blank">
+          <div class="t-title" data-i18n="testE2E">E2E Tests</div>
+          <div class="t-sub" data-i18n="testE2ESub">Pipeline complet, după scrape</div>
+        </a>
+        <a class="test-card" href="test-results/post-scrape-consistency.html" target="_blank">
+          <div class="t-title" data-i18n="testConsistency">Consistency Tests</div>
+          <div class="t-sub" data-i18n="testConsistencySub">Structura repo-ului respectă template-ul</div>
+        </a>
+        <a class="test-card" href="test-results/" target="_blank">
+          <div class="t-title" data-i18n="testAll">Toate rapoartele</div>
+          <div class="t-sub" data-i18n="testAllSub">Pagina centrală cu toate rezultatele</div>
+        </a>
+        <a class="test-card" href="https://github.com/TheTatu13/cramele-cotnari-sa-nodejs-scraper/actions/workflows/job-seeker-ro-spider.yml" target="_blank">
+          <div class="t-title" data-i18n="testsWorkflow">Workflow Teste</div>
+          <div class="t-sub" data-i18n="testsWorkflowSub">Log-urile live din GitHub Actions</div>
+        </a>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -383,6 +449,14 @@ const i18n = {
     docs: "Documentation",
     companyLoading: "Loading...",
     testResults: "Test Results",
+    sourceBtn: "Source code",
+    testsTitle: "Test results",
+    testUnit: "Unit Tests", testUnitSub: "Isolated tests, no network",
+    testIntegration: "Integration Tests", testIntegrationSub: "ANAF + Peviitor API, before scraping",
+    testE2E: "E2E Tests", testE2ESub: "Full pipeline, after scraping",
+    testConsistency: "Consistency Tests", testConsistencySub: "Repo structure matches the template",
+    testAll: "All reports", testAllSub: "Central page with every result",
+    testsWorkflow: "Test Workflow", testsWorkflowSub: "Live logs on GitHub Actions",
   },
   ro: {
     pageTitle: "Locuri de muncă — peviitor.ro",
@@ -402,6 +476,14 @@ const i18n = {
     docs: "Documentație",
     companyLoading: "Se încarcă...",
     testResults: "Rezultate Teste",
+    sourceBtn: "Cod sursă",
+    testsTitle: "Rezultate teste",
+    testUnit: "Unit Tests", testUnitSub: "Teste izolate, fără rețea",
+    testIntegration: "Integration Tests", testIntegrationSub: "ANAF + API Peviitor, înainte de scrape",
+    testE2E: "E2E Tests", testE2ESub: "Pipeline complet, după scrape",
+    testConsistency: "Consistency Tests", testConsistencySub: "Structura repo-ului respectă template-ul",
+    testAll: "Toate rapoartele", testAllSub: "Pagina centrală cu toate rezultatele",
+    testsWorkflow: "Workflow Teste", testsWorkflowSub: "Log-urile live din GitHub Actions",
   }
 };
 
