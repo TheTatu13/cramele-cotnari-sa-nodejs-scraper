@@ -36,6 +36,10 @@ import companyConfig from '../../scraper/config/company.js';
 const COMPANY_CIF = companyConfig.id;
 const COMPANY_BRAND = companyConfig.brand;
 const COMPANY_NAME = companyConfig.company;
+// peViitor's own API returns the CIF zero-padded to 8 digits (SOLR
+// requirement, see scraper/api.js padCif()); company.json stores it
+// unpadded, so compare with this normalizer instead of exact equality.
+const cifMatches = (value) => String(value).replace(/^0+/, '') === COMPANY_CIF.replace(/^0+/, '');
 
 async function checkApiAvailability() {
   try {
@@ -115,7 +119,7 @@ describe('Integration: API Workflow', () => {
       const api = await import('../../scraper/api.js');
       const company = await api.getCompanyByCif(COMPANY_CIF);
       expect(company).toBeTruthy();
-      expect(company.id).toBe(COMPANY_CIF);
+      expect(cifMatches(company.id)).toBe(true);
     }, 15000);
   });
 
@@ -130,7 +134,7 @@ describe('Integration: API Workflow', () => {
       const result = await api.getCompanyByCif(COMPANY_CIF);
 
       expect(result).not.toBeNull();
-      expect(result.id).toBe(COMPANY_CIF);
+      expect(cifMatches(result.id)).toBe(true);
       expect(result.company).toBe(COMPANY_NAME);
       expect(result.status).toBe('activ');
       expect(Array.isArray(result.location)).toBe(true);
@@ -140,7 +144,8 @@ describe('Integration: API Workflow', () => {
     itIfApi('should have required company model fields', async () => {
       const result = await api.getCompanyByCif(COMPANY_CIF);
 
-      expect(result).toHaveProperty('id', COMPANY_CIF);
+      expect(result).toHaveProperty('id');
+      expect(cifMatches(result.id)).toBe(true);
       expect(result).toHaveProperty('company');
       expect(result).toHaveProperty('status');
       expect(['activ', 'suspendat', 'inactiv', 'radiat']).toContain(result.status);
@@ -186,7 +191,8 @@ describe('Integration: API Workflow', () => {
       expect(job).toHaveProperty('url');
       expect(job).toHaveProperty('title');
       expect(job).toHaveProperty('company', COMPANY_NAME);
-      expect(job).toHaveProperty('cif', COMPANY_CIF);
+      expect(job).toHaveProperty('cif');
+      expect(cifMatches(job.cif)).toBe(true);
       expect(job).toHaveProperty('status');
       expect(job).toHaveProperty('location');
     }, 15000);
@@ -247,7 +253,7 @@ describe('Integration: API Workflow', () => {
 
       const companyData = await api.getCompanyByCif(COMPANY_CIF);
       expect(companyData).not.toBeNull();
-      expect(companyData.id).toBe(COMPANY_CIF);
+      expect(cifMatches(companyData.id)).toBe(true);
       expect(companyData.company).toBe(COMPANY_NAME);
     }, 30000);
 
