@@ -7,11 +7,11 @@
 | CIF | 40321026 |
 | Brand | Cotnari |
 | Status | activ |
-| Location | JUD. IAŞI, COM. COTNARI,  , CORP C28. CF 60835 |
+| Location | Iași |
 | Website | [https://www.cotnari.ro](https://www.cotnari.ro) |
 | Careers | [https://www.bestjobs.eu/company-profile/cramele-cotnari](https://www.bestjobs.eu/company-profile/cramele-cotnari), [https://www.ejobs.ro/company/cotnari/304021](https://www.ejobs.ro/company/cotnari/304021) |
-| Last Scraped | 2026-10-01 |
+| Last Scraped | 2026-10-02 |
 
 ## Current Job Listings (0)
 
-_Generated: 2026-10-01T12:02:20.442Z_
+_Generated: 2026-10-02T11:34:11.371Z_
