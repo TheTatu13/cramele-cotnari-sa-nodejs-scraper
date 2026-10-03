@@ -1,6 +1,8 @@
 import { jest } from '@jest/globals';
 import fetch from 'node-fetch';
 
+jest.retryTimes(2, { logErrorsBeforeRetry: true }); // live third-party ANAF/search calls are occasionally slow in CI
+
 const API_BASE = 'https://api.peviitor.ro/v1';
 
 function itIfApi(name, fn, timeout) {
