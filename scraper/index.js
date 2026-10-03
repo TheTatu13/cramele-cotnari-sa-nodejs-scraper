@@ -365,6 +365,13 @@ async function main(dryRun = process.argv.includes("--dry-run")) {
     fs.copyFileSync("scraper/config/company.json", "docs/company.json");
     console.log("Copied scraper/config/company.json → docs/company.json");
 
+    // Canary: scraping nothing while Solr holds several of our jobs almost always means a
+    // broken source (page change, block), not mass expiry - abort before any write/delete.
+    const ownExistingCount = [...existingUrls].filter(url => isOwnJob(url)).length;
+    if (transformedPayload.jobs.length === 0 && ownExistingCount >= 5) {
+      throw new Error(`canary: 0 jobs scraped but Solr holds ${ownExistingCount} of ours - aborting before any write`);
+    }
+
     console.log("\n=== Step 4: Upsert jobs to SOLR ===");
     if (dryRun) {
       console.log(`dry-run -- would upsert ${transformedPayload.jobs.length} jobs`);

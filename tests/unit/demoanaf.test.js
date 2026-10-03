@@ -163,11 +163,37 @@ describe('scraper/anaf.js', () => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
-    it('should throw when both ANAF and CUIScan fail', async () => {
+    it('should throw when all company sources fail', async () => {
       mockFetch.mockResolvedValue(errorResponse(500));
 
       await expect(anaf.getCompanyFromANAF('39176747')).rejects.toThrow();
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('should fall back to the official ANAF API when CUIScan is unusable', async () => {
+      mockFetch
+        .mockResolvedValueOnce(errorResponse(500))
+        .mockResolvedValueOnce(errorResponse(500))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            found: [{
+              date_generale: { cui: 39176747, denumire: 'LSEG BUSINESS SERVICES RM S.R.L.', adresa: 'IANCU DE HUNEDOARA 48', cod_CAEN: '6220' },
+              inregistrare_scop_Tva: { scpTVA: true },
+              stare_inactiv: { statusInactivi: false },
+              adresa_sediu_social: {},
+              adresa_domiciliu_fiscal: {}
+            }]
+          })
+        });
+
+      const data = await anaf.getCompanyFromANAF('39176747');
+
+      expect(data.cui).toBe(39176747);
+      expect(data.name).toBe('LSEG BUSINESS SERVICES RM S.R.L.');
+      expect(data.inactive).toBe(false);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(mockFetch.mock.calls[2][0]).toContain('webservicesp.anaf.ro');
     });
 
     it('should handle API-level error response', async () => {
