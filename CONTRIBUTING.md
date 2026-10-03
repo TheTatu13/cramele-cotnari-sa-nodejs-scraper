@@ -12,7 +12,7 @@ npm test
 
 ## Reporting Issues
 
-Open a [GitHub Issue](https://github.com/TheTatu13/cramele-cotnari-sa-nodejs-scraper/issues) with:
+Open a [GitHub Issue](https://github.com/peviitor-scrapers/cramele-cotnari-sa-nodejs-scraper/issues) with:
 - Clear description of the problem
 - Steps to reproduce
 - Expected vs actual behavior

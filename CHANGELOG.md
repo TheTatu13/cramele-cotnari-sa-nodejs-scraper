@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2026-09-07
 
 ### Added
-- Repo derivat din template-ul [epam-systems-international-srl-nodejs-scraper](https://github.com/sebiboga/epam-systems-international-srl-nodejs-scraper) pentru **CRAMELE COTNARI S.A.** (CIF: 40321026)
+- Repo derivat din template-ul [epam-systems-international-srl-nodejs-scraper](https://github.com/peviitor-scrapers/epam-systems-international-srl-nodejs-scraper) pentru **CRAMELE COTNARI S.A.** (CIF: 40321026)
 - Scraping Playwright (headless Chromium) pe [BestJobs](https://www.bestjobs.eu/company-profile/cramele-cotnari) și [eJobs](https://www.ejobs.ro/company/cotnari/304021)
 - Scraping ANOFM prin `employer_tax_code`
 - Degradare grațioasă: o sursă indisponibilă sau blocată nu oprește scrape-ul

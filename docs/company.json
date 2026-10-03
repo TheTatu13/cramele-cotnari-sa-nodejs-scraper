@@ -6,5 +6,5 @@
   "location": ["Iași"],
   "website": ["https://www.cotnari.ro"],
   "career": ["https://www.bestjobs.eu/company-profile/cramele-cotnari", "https://www.ejobs.ro/company/cotnari/304021"],
-  "scraperFile": "https://github.com/TheTatu13/cramele-cotnari-sa-nodejs-scraper/actions/workflows/job-seeker-ro-spider.yml"
+  "scraperFile": "https://github.com/peviitor-scrapers/cramele-cotnari-sa-nodejs-scraper/actions/workflows/job-seeker-ro-spider.yml"
 }

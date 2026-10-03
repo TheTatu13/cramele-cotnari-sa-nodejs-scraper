@@ -4,7 +4,7 @@
 
 Extrage anunțurile de pe [BestJobs](https://www.bestjobs.eu/company-profile/cramele-cotnari), [eJobs](https://www.ejobs.ro/company/cotnari/304021) și [ANOFM](https://mediere.anofm.ro) și le publică în [peviitor.ro](https://peviitor.ro) prin API-ul Peviitor.
 
-> **🌱 Repo derivat.** Acest repo este derivat din template-ul [epam-systems-international-srl-nodejs-scraper](https://github.com/sebiboga/epam-systems-international-srl-nodejs-scraper).
+> **🌱 Repo derivat.** Acest repo este derivat din template-ul [epam-systems-international-srl-nodejs-scraper](https://github.com/peviitor-scrapers/epam-systems-international-srl-nodejs-scraper).
 
 ## Identificare
 

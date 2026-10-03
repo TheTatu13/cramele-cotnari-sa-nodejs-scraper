@@ -65,7 +65,7 @@
       "https://www.ejobs.ro/company/cotnari/304021"
     ],
     "lastScraped": "2026-09-06",
-    "scraperFile": "TheTatu13/cramele-cotnari-sa-nodejs-scraper",
+    "scraperFile": "peviitor-scrapers/cramele-cotnari-sa-nodejs-scraper",
     "_version_": 1862291263324160000,
     "_root_": "40321026"
   },
